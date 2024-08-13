@@ -143,3 +143,4 @@ websockets==12.0
 Werkzeug==3.0.2
 zarr==2.17.2
 zipp==3.18.1
+segmentation_models_pytorch_3d==1.0.1

@@ -14,8 +14,6 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
 
 COPY --chown=user:user requirements.txt /opt/app/
-COPY --chown=user:user resources /opt/app/resources
-
 
 RUN python -m pip install \
     --user \
@@ -23,6 +21,9 @@ RUN python -m pip install \
     --no-color \
     --requirement /opt/app/requirements.txt
 
+COPY --chown=user:user resources /opt/app/resources
 COPY --chown=user:user inference.py /opt/app/
+COPY --chown=user:user convert_2d_to_3d.py /opt/app/
 
+# ENTRYPOINT ["python", "-m", "pip", "list", "--format", "freeze"]
 ENTRYPOINT ["python", "inference.py"]
