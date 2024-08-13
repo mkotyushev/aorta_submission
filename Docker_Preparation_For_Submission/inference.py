@@ -375,7 +375,9 @@ def run():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
     saved_model_paths = [
-        RESOURCE_PATH / "last.pt"
+        RESOURCE_PATH / "models" / "cpsurr49" / "checkpoints" / "last.pt",
+        RESOURCE_PATH / "models" / "u9bvf6hv" / "checkpoints" / "last.pt",
+        RESOURCE_PATH / "models" / "xp1uem9o" / "checkpoints" / "last.pt",
     ]
     seg_arch = 'smp.Unet'
     seg_kwargs = {
