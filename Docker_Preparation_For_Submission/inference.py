@@ -404,9 +404,9 @@ def run():
         metrics=dict(),
         save_dirpath=None,
     )
-    patch_size = (128, 128, 128)
-    step_size = (64, 64, 64)
-    batch_size = 4
+    patch_size = (128, 128, 256)
+    step_size = (64, 64, 128)
+    batch_size = 2
     batch = []
 
     def run_batch():
