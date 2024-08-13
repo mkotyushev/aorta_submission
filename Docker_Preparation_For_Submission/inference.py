@@ -445,7 +445,7 @@ def run():
     if len(batch) > 0:
         run_batch()
     metric._calculate_metrics()
-    aortic_branches = metric.preds.argmax(dim=0).to(torch.int16).cpu().numpy()
+    aortic_branches = metric.preds.argmax(dim=0).to(torch.uint8).cpu().numpy()
     aortic_branches = aortic_branches.transpose(2, 1, 0)
 
     ########## Don't Change Anything below this 
