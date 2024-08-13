@@ -383,6 +383,7 @@ def run():
         'classes': 24,
         'encoder_depth': 5,
         'decoder_channels': [256, 128, 64, 32, 16],
+        'encoder_weights': None,
         'strides': [[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]]
     }
     for saved_model_path in saved_model_paths:
