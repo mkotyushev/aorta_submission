@@ -256,8 +256,8 @@ class UnpatchifyMetrics:
         device: torch.device = torch.device('cpu'),
     ):
         self.name = name
-        self.preds = torch.zeros((self.n_classes, *padded_shape), dtype=torch.float32, device=device)
-        self.weights = torch.zeros(padded_shape, dtype=torch.float32, device=device)
+        self.preds = torch.zeros((self.n_classes, *padded_shape), dtype=torch.bfloat16, device=device)
+        self.weights = torch.zeros(padded_shape, dtype=torch.bfloat16, device=device)
         self.original_shape = original_shape
         self.weight_kernel = torch.from_numpy(
             spline_window_3d(*patch_shape, power=2)
@@ -405,44 +405,46 @@ def run():
     )
     patch_size = (128, 128, 128)
     step_size = (64, 64, 64)
-    batch_size = 8
+    batch_size = 4
     batch = []
+
     def run_batch():
         nonlocal batch, metric, models, device
-        batch = collate_fn(batch)
-        image = batch['image'].to(device)
-        for model in models:
-            pred = model(image)
-            pred = torch.softmax(pred, dim=1)
-            metric.update({'pred': pred, **batch})
-        batch = []
-    with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.bfloat16):
-        for (
-            (image_patch,), 
-            indices, 
-            original_shape, 
-            padded_shape
-        ) in tqdm(
-            generate_patches_3d(
-                image, patch_size=patch_size, step_size=step_size,
-            )
-        ):
-            item = {
-                'image': image_patch,
-                'name': 'image',
-                'indices': indices,
-                'original_shape': original_shape,
-                'padded_shape': padded_shape,
-            }
-            item = transform(**item)
-            batch.append(item)
+        with torch.no_grad():
+            batch = collate_fn(batch)
+            image = batch['image'].to(device)
+            for model in models:
+                with torch.autocast(enabled=True, dtype=torch.bfloat16, device_type='cuda'):
+                    pred = model(image)
+                    metric.update({'pred': pred, **batch})
+            batch = []
 
-            if len(batch) == batch_size:
-                run_batch()
+    for (
+        (image_patch,), 
+        indices, 
+        original_shape, 
+        padded_shape
+    ) in tqdm(
+        generate_patches_3d(
+            image, patch_size=patch_size, step_size=step_size,
+        )
+    ):
+        item = {
+            'image': image_patch,
+            'name': 'image',
+            'indices': indices,
+            'original_shape': original_shape,
+            'padded_shape': padded_shape,
+        }
+        item = transform(**item)
+        batch.append(item)
+
+        if len(batch) == batch_size:
+            run_batch()
     if len(batch) > 0:
         run_batch()
     metric._calculate_metrics()
-    aortic_branches = metric.preds.argmax(dim=0).to(torch.uint8).cpu().numpy()
+    aortic_branches = metric.preds.argmax(dim=0).to(torch.int16).cpu().numpy()
 
     ########## Don't Change Anything below this 
     # For some reason if you want to change the lines, make sure the output segmentation has the same properties (spacing, dimension, origin, etc) as the 
