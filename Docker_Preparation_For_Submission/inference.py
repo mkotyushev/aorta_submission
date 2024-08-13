@@ -359,6 +359,7 @@ def run():
     _show_torch_cuda_info()
 
     ############# Lines You can change ###########
+    image = image.transpose(2, 1, 0)
     transform = Compose(
         [
             ConvertTypes(),
@@ -445,6 +446,7 @@ def run():
         run_batch()
     metric._calculate_metrics()
     aortic_branches = metric.preds.argmax(dim=0).to(torch.int16).cpu().numpy()
+    aortic_branches = aortic_branches.transpose(2, 1, 0)
 
     ########## Don't Change Anything below this 
     # For some reason if you want to change the lines, make sure the output segmentation has the same properties (spacing, dimension, origin, etc) as the 
