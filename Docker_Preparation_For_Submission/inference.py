@@ -360,6 +360,7 @@ def run():
 
     ############# Lines You can change ###########
     image = image.transpose(2, 1, 0)
+    image = image[::-1, ::-1, :]
 
     ### crop
     oshape = image.shape
@@ -554,6 +555,7 @@ def run():
 
     ### ###
 
+    aortic_branches = aortic_branches[::-1, ::-1, :]
     aortic_branches = aortic_branches.transpose(2, 1, 0)
 
     ########## Don't Change Anything below this 
