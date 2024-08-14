@@ -360,6 +360,15 @@ def run():
 
     ############# Lines You can change ###########
     image = image.transpose(2, 1, 0)
+
+    ### crop
+    oshape = image.shape
+    oxsize, oysize, ozsize = oshape
+
+    image = image[oxsize//4:-oxsize//4, oysize//4:-oysize//4]
+
+    ### crop end
+
     transform = Compose(
         [
             ConvertTypes(),
@@ -374,6 +383,9 @@ def run():
     os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
+
+    ##### uncomment ############################################################
+
     saved_model_paths = [
         RESOURCE_PATH / "models" / "cpsurr49" / "checkpoints" / "last.pt",
         RESOURCE_PATH / "models" / "u9bvf6hv" / "checkpoints" / "last.pt",
@@ -447,7 +459,102 @@ def run():
     if len(batch) > 0:
         run_batch()
     metric._calculate_metrics()
-    aortic_branches = metric.preds.argmax(dim=0).to(torch.uint8).cpu().numpy()
+
+    mkotyushev_prob_masks = metric.preds.cpu().numpy()
+
+    ########################################################################### 
+
+    # aortic_branches = metric.preds.argmax(dim=0).to(torch.uint8).cpu().numpy()
+    # aortic_branches = aortic_branches.transpose(2, 1, 0)
+
+    # rostepifanov code
+
+    from cc3d import connected_components
+
+    def filter_largest_connected_component(masks, connectivity):
+        filter_masks = np.array(masks)
+        booled_masks = (masks > 0).astype(np.uint8)
+
+        components, ncomponents = connected_components(booled_masks, connectivity=connectivity, return_N=True)
+
+        if ncomponents > 0:
+            sizes = [ np.sum(components == idx + 1) for idx in np.arange(ncomponents) ]
+            filter_masks[components != (np.argmax(sizes) + 1)] = 0
+
+        return filter_masks
+
+    from convertors import create_rostepifanov_model, EvalFusing, voxel_sequential_selector
+
+    rostepifanov_models = []
+
+    rostepifanov_saved_model_paths = [
+        RESOURCE_PATH / "models" / "model_final_seed0.pth",
+        RESOURCE_PATH / "models" / "model_final_seed1.pth",
+        RESOURCE_PATH / "models" / "model_final_seed2.pth",
+    ]
+
+    for saved_model_path in rostepifanov_saved_model_paths:
+        model = create_rostepifanov_model()
+        state_dict = torch.load(saved_model_path, map_location='cpu', weights_only=True)
+        model.load_state_dict(state_dict, strict=True)
+        model = model.to(device)
+        model.eval()
+
+        model.encoder = EvalFusing(model.encoder, 'timm-efficientnetv2-m')
+        rostepifanov_models.append(model)
+
+    imgs = image
+
+    shape = imgs.shape
+    xsize, ysize, _ = shape
+
+    vxsize, vysize, vzsize = (160, 160, 70)
+    sxsize, sysize, szsize = (160, 160, 35)
+
+    voxel_shape = (xsize, ysize, vzsize)
+    steps = (xsize, ysize, szsize)
+
+    prob_masks = np.zeros((24, *shape), dtype=np.float32)
+    count_masks = np.zeros(shape, dtype=np.uint8)
+
+    for _, selector in tqdm([*voxel_sequential_selector(voxel_shape, ['x'], [imgs.shape], steps)]):
+        with torch.no_grad():
+            voxels_batch = imgs[selector]
+            voxels_batch = (voxels_batch + 200) / 1000
+            voxels_batch = np.clip(voxels_batch, a_min=0, a_max=1)
+            voxels_batch = torch.tensor([voxels_batch[None]]).float().to(device)
+
+            voxels_batch = voxels_batch
+
+            for model in rostepifanov_models:
+                logits_batch = model(voxels_batch)
+
+                prob_masks_batch = logits_batch.softmax(dim=1)
+                prob_masks_batch = prob_masks_batch.cpu().numpy()
+
+                prob_masks[(slice(0, None), *selector)] += prob_masks_batch[0]
+                count_masks[selector] += 1
+
+    prob_masks /= count_masks
+
+    rostepifanov_prob_masks = prob_masks
+
+    # ensemble
+
+    prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
+    # prob_masks = rostepifanov_prob_masks
+
+    aortic_branches = prob_masks.argmax(axis=0).astype(np.uint8)
+
+    ### PADDING ###
+
+    padded_aortic_branches = np.zeros(oshape, dtype=np.uint8)
+    padded_aortic_branches[oxsize//4:-oxsize//4, oysize//4:-oysize//4] = aortic_branches
+
+    aortic_branches = padded_aortic_branches
+
+    ### ###
+
     aortic_branches = aortic_branches.transpose(2, 1, 0)
 
     ########## Don't Change Anything below this 
