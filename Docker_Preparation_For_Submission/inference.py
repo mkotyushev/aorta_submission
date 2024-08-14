@@ -350,7 +350,7 @@ def build_model(seg_arch, seg_kwargs):
 def run():
     # Read the input
     # Read the input
-    image, spacing, direction, origin = load_image_file_as_array(
+    filename, image, spacing, direction, origin = load_image_file_as_array(
         location=INPUT_PATH / "images/ct-angiography",
     )
     
@@ -563,6 +563,7 @@ def run():
 
     # Save your output
     write_array_as_image_file(
+        filename=filename,
         location=OUTPUT_PATH / "images/aortic-branches",
         array=aortic_branches,
         spacing=spacing, 
@@ -576,28 +577,26 @@ def run():
 def load_image_file_as_array(*, location):
     # Use SimpleITK to read a file
     input_files = glob(str(location / "*.tiff")) + glob(str(location / "*.mha"))
+    filename = os.path.basename(input_files[0])
     result = SimpleITK.ReadImage(input_files[0])
     spacing = result.GetSpacing()
     direction = result.GetDirection()
     origin = result.GetOrigin()
     # Convert it to a Numpy array
-    return SimpleITK.GetArrayFromImage(result), spacing, direction, origin
+    return filename, SimpleITK.GetArrayFromImage(result), spacing, direction, origin
 
 
 
 
-def write_array_as_image_file(*, location, array, spacing, origin, direction):
+def write_array_as_image_file(*, filename, location, array, spacing, origin, direction):
     location.mkdir(parents=True, exist_ok=True)
-
-    # You may need to change the suffix to .tiff to match the expected output
-    suffix = ".mha"
 
     image = SimpleITK.GetImageFromArray(array)
     image.SetDirection(direction) # My line
     image.SetOrigin(origin)
     SimpleITK.WriteImage(
         image,
-        location / f"output{suffix}",
+        location / filename,
         useCompression=True,
     )
 
