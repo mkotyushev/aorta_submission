@@ -22,8 +22,8 @@ if [ -z "$build_timestamp" ]; then
 fi
 
 # Format the build information to remove special characters
-# formatted_build_info=$(date -d "$build_timestamp" +"%Y%m%d_%H%M%S") # Not for mac
-formatted_build_info=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$build_timestamp" +"%Y%m%d_%H%M%S") # For mac
+formatted_build_info=$(date -d "$build_timestamp" +"%Y%m%d_%H%M%S") # Not for mac
+# formatted_build_info=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$build_timestamp" +"%Y%m%d_%H%M%S") # For mac
 
 # Set the output filename with timestamp and build information
 output_filename="${SCRIPT_DIR}/${container_tag}_${formatted_build_info}.tar.gz"
