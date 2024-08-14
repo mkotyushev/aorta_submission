@@ -388,8 +388,8 @@ def run():
 
     saved_model_paths = [
         RESOURCE_PATH / "models" / "cpsurr49" / "checkpoints" / "last.pt",
-        RESOURCE_PATH / "models" / "u9bvf6hv" / "checkpoints" / "last.pt",
-        RESOURCE_PATH / "models" / "xp1uem9o" / "checkpoints" / "last.pt",
+        # RESOURCE_PATH / "models" / "u9bvf6hv" / "checkpoints" / "last.pt",
+        # RESOURCE_PATH / "models" / "xp1uem9o" / "checkpoints" / "last.pt",
     ]
     seg_arch = 'smp.Unet'
     seg_kwargs = {
@@ -489,8 +489,8 @@ def run():
 
     rostepifanov_saved_model_paths = [
         RESOURCE_PATH / "models" / "model_final_seed0.pth",
-        RESOURCE_PATH / "models" / "model_final_seed1.pth",
-        RESOURCE_PATH / "models" / "model_final_seed2.pth",
+        # RESOURCE_PATH / "models" / "model_final_seed1.pth",
+        # RESOURCE_PATH / "models" / "model_final_seed2.pth",
     ]
 
     for saved_model_path in rostepifanov_saved_model_paths:
