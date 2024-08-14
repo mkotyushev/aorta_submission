@@ -256,8 +256,8 @@ class UnpatchifyMetrics:
         device: torch.device = torch.device('cpu'),
     ):
         self.name = name
-        self.preds = torch.zeros((self.n_classes, *padded_shape), dtype=torch.bfloat16, device=device)
-        self.weights = torch.zeros(padded_shape, dtype=torch.bfloat16, device=device)
+        self.preds = torch.zeros((self.n_classes, *padded_shape), dtype=torch.float32, device=device)
+        self.weights = torch.zeros(padded_shape, dtype=torch.float32, device=device)
         self.original_shape = original_shape
         self.weight_kernel = torch.from_numpy(
             spline_window_3d(*patch_shape, power=2)
@@ -429,9 +429,8 @@ def run():
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
-                with torch.autocast(enabled=True, dtype=torch.bfloat16, device_type='cuda'):
-                    pred = model(image)
-                    metric.update({'pred': pred, **batch})
+                pred = model(image)
+                metric.update({'pred': pred, **batch})
             batch = []
 
     for (
