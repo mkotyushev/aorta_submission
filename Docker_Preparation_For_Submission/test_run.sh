@@ -4,11 +4,11 @@
 set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-DOCKER_TAG="example-algorithm-preliminary-development-phase"
+DOCKER_TAG="aorta24_lower_math_submission"
 DOCKER_NOOP_VOLUME="${DOCKER_TAG}-volume"
 
-INPUT_DIR="${SCRIPT_DIR}/test/input"
-OUTPUT_DIR="${SCRIPT_DIR}/test/output"
+INPUT_DIR="${SCRIPT_DIR}/test_data_input"
+OUTPUT_DIR="${SCRIPT_DIR}/test_data_output"
 
 
 echo "=+= Cleaning up any earlier output"
