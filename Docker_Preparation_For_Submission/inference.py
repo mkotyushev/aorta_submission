@@ -488,16 +488,19 @@ def run():
     )
     step_size = (64, 64, 128)  # x, y not used
     batch_size = 1
+    bg_multiplier = 0.3
     batch = []
 
     def run_batch():
-        nonlocal batch, metric, models, device
+        nonlocal batch, metric, models, device, bg_multiplier
         with torch.no_grad():
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
                 pred = model(image)
                 pred = torch.softmax(pred, dim=1)
+                pred[:, 0] *= bg_multiplier
+                pred = pred / pred.sum(dim=1, keepdim=True)
                 metric.update({'pred': pred, **batch})
             batch = []
 
@@ -597,6 +600,8 @@ def run():
                 logits_batch = model(voxels_batch)
 
                 prob_masks_batch = logits_batch.softmax(dim=1)
+                prob_masks_batch[:, 0] *= bg_multiplier
+                prob_masks_batch = prob_masks_batch / prob_masks_batch.sum(dim=1, keepdim=True)
                 prob_masks_batch = prob_masks_batch.cpu().numpy()
 
                 prob_masks[(slice(0, None), *selector)] += prob_masks_batch[0]
