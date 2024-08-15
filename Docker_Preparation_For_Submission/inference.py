@@ -409,6 +409,64 @@ def run():
         model.load_state_dict(state_dict, strict=True)
         model = model.to(device)
         model.eval()
+
+        ### patching 
+
+        model.check_input_shape = lambda *args: None
+
+        import types
+        import torch.nn as nn
+
+        def _sm_unet_decoder_decoderblock_forward(self, x, skip=None, shape=None):
+            if shape is not None:
+                scale_factor = list()
+
+                getdim = lambda vector, axis : vector.shape[axis]
+
+                naxis = len(x.shape)
+                for axis in np.arange(2, naxis):
+                    scale_factor.append(shape[axis]/getdim(x, axis))
+
+                scale_factor = tuple(scale_factor)
+            else:
+                scale_factor = 2
+
+            x = nn.functional.interpolate(x, scale_factor=scale_factor, mode='nearest')
+            if skip is not None:
+                x = torch.cat([x, skip], dim=1)
+                x = self.attention1(x)
+            x = self.conv1(x)
+            x = self.conv2(x)
+            x = self.attention2(x)
+
+            return x
+
+        def _sm_unet_decoder_unetdecoder_forward(self, *features):
+            features = features[::-1]
+
+            head = features[0]
+            skips = features[1:]
+
+            x = self.center(head)
+            for i, decoder_block in enumerate(self.blocks):
+                if i < len(skips) - 1:
+                    skip = skips[i]
+                    shape = skips[i].shape
+                else:
+                    skip = None
+                    shape = skips[i].shape
+
+                x = decoder_block(x, skip, shape)
+
+            return x
+
+        model.decoder.forward = types.MethodType(_sm_unet_decoder_unetdecoder_forward, model.decoder)
+
+        for block in model.decoder.blocks:
+            block.forward = types.MethodType(_sm_unet_decoder_decoderblock_forward, block)
+
+        ### end patching
+
         models.append(model)
 
     print("Defined the models...")
@@ -419,9 +477,13 @@ def run():
         metrics=dict(),
         save_dirpath=None,
     )
-    patch_size = (128, 128, 256)
-    step_size = (64, 64, 128)
-    batch_size = 2
+
+    shape = image.shape
+    xsize, ysize, _ = shape
+
+    patch_size = (xsize, ysize, 256)
+    step_size = (xsize, ysize, 128)
+    batch_size = 1
     batch = []
 
     def run_batch():
@@ -542,7 +604,8 @@ def run():
     # ensemble
 
     prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
-    # prob_masks = rostepifanov_prob_masks
+    #prob_masks = rostepifanov_prob_masks
+    # prob_masks = mkotyushev_prob_masks
 
     aortic_branches = prob_masks.argmax(axis=0).astype(np.uint8)
 
