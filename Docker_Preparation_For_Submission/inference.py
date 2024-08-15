@@ -564,6 +564,10 @@ def run():
 
     aortic_branches = prob_masks.argmax(axis=0).astype(np.uint8)
 
+    # Post-processing
+    for idx in tqdm(range(1, 24)):
+        aortic_branches[aortic_branches == idx] = idx * filter_largest_connected_component(aortic_branches == idx, 6).astype(np.uint8)[aortic_branches == idx]
+
     ### PADDING ###
 
     padded_aortic_branches = np.zeros(oshape, dtype=np.uint8)
