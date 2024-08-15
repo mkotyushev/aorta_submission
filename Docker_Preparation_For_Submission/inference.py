@@ -367,7 +367,7 @@ def run():
     oshape = image.shape
     oxsize, oysize, ozsize = oshape
 
-    image = image[oxsize//4:-oxsize//4, oysize//4:-oysize//4]
+    image = image[oxsize//4:-oxsize//4, oysize//4:-(oysize*2)//9]
 
     ### crop end
 
@@ -624,7 +624,7 @@ def run():
     ### PADDING ###
 
     padded_aortic_branches = np.zeros(oshape, dtype=np.uint8)
-    padded_aortic_branches[oxsize//4:-oxsize//4, oysize//4:-oysize//4] = aortic_branches
+    padded_aortic_branches[oxsize//4:-oxsize//4, oysize//4:-(oysize*2)//9] = aortic_branches
 
     aortic_branches = padded_aortic_branches
 
