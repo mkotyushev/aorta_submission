@@ -556,7 +556,7 @@ def run():
 
     # ensemble
 
-    prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
+    prob_masks = 0.4 * rostepifanov_prob_masks + 0.6 * mkotyushev_prob_masks
     #prob_masks = rostepifanov_prob_masks
     # prob_masks = mkotyushev_prob_masks
     # prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
