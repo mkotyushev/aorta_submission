@@ -429,15 +429,18 @@ def run():
     )
     step_size = (64, 64, 128)  # x, y not used
     batch_size = 1
+    bg_multiplier = 0.8
     batch = []
 
     def run_batch():
-        nonlocal batch, metric, models, device
+        nonlocal batch, metric, models, device, bg_multiplier
         with torch.no_grad():
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
                 pred = model(image)
+                if bg_multiplier is not None:
+                    pred[:, 0, ...] = pred[:, 0, ...] * bg_multiplier
                 metric.update({'pred': pred, **batch})
             batch = []
 
