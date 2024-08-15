@@ -377,108 +377,10 @@ def run():
         ]
     )
 
-    models = []
-
-    # mkotyushev's models
     # Set the environment variable to handle memory fragmentation
     os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
-
-    ##### uncomment ############################################################
-
-    saved_model_paths = [
-        RESOURCE_PATH / "models" / "cpsurr49" / "checkpoints" / "last.pt",
-        # RESOURCE_PATH / "models" / "u9bvf6hv" / "checkpoints" / "last.pt",
-        # RESOURCE_PATH / "models" / "xp1uem9o" / "checkpoints" / "last.pt",
-    ]
-    seg_arch = 'smp.Unet'
-    seg_kwargs = {
-        'encoder_name': 'tu-tf_efficientnetv2_m.in21k_ft_in1k',
-        'in_channels': 1,
-        'classes': 24,
-        'encoder_depth': 5,
-        'decoder_channels': [256, 128, 64, 32, 16],
-        'encoder_weights': None,
-        'strides': [[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]]
-    }
-    for saved_model_path in saved_model_paths:
-        model = build_model(seg_arch, seg_kwargs)
-        state_dict = torch.load(saved_model_path, map_location='cpu', weights_only=True)
-        state_dict = {k[len('model.'):]: v for k, v in state_dict.items()}
-        model.load_state_dict(state_dict, strict=True)
-        model = model.to(device)
-        model.eval()
-
-        models.append(model)
-
-    print("Defined the models...")
-
-    # Inference
-    metric = UnpatchifyMetrics(
-        n_classes=24,
-        metrics=dict(),
-        save_dirpath=None,
-    )
-
-    shape = image.shape
-    xsize, ysize, _ = shape
-
-    pxsize = 32 * ((xsize + 31) // 32)
-    pysize = 32 * ((ysize + 31) // 32)
-    
-    pimage = np.pad( image,
-                     pad_width=((0, pxsize - xsize), (0, pysize - ysize), (0, 0)),
-                     mode='constant',
-                     constant_values=0 )
-
-    patch_size = (pxsize, pysize, 256)
-    step_size = (pxsize, pysize, 128)
-    batch_size = 1
-    batch = []
-
-    def run_batch():
-        nonlocal batch, metric, models, device
-        with torch.no_grad():
-            batch = collate_fn(batch)
-            image = batch['image'].to(device)
-            for model in models:
-                pred = model(image)
-                metric.update({'pred': pred, **batch})
-            batch = []
-
-    for (
-        (image_patch,), 
-        indices, 
-        original_shape, 
-        padded_shape
-    ) in tqdm(
-        generate_patches_3d(
-            pimage, patch_size=patch_size, step_size=step_size,
-        )
-    ):
-        item = {
-            'image': image_patch,
-            'name': 'image',
-            'indices': indices,
-            'original_shape': original_shape,
-            'padded_shape': padded_shape,
-        }
-        item = transform(**item)
-        batch.append(item)
-
-        if len(batch) == batch_size:
-            run_batch()
-    if len(batch) > 0:
-        run_batch()
-    metric._calculate_metrics()
-
-    mkotyushev_prob_masks = metric.preds.float().cpu().numpy()[:, :xsize, :ysize]
-
-    ########################################################################### 
-
-    # aortic_branches = metric.preds.argmax(dim=0).to(torch.uint8).cpu().numpy()
-    # aortic_branches = aortic_branches.transpose(2, 1, 0)
 
     # rostepifanov code
 
