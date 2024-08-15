@@ -26,6 +26,7 @@ import scipy
 import torch
 import segmentation_models_pytorch_3d as smp
 import gc
+import math
 from contextlib import ExitStack
 from unittest.mock import patch
 from glob import glob
@@ -419,9 +420,15 @@ def run():
         metrics=dict(),
         save_dirpath=None,
     )
-    patch_size = (128, 128, 256)
-    step_size = (64, 64, 128)
-    batch_size = 2
+    # Full size by x, y
+    # padded by 32 to comply with the SMP requirements
+    patch_size = (
+        math.ceil(image.shape[0] / 32) * 32,
+        math.ceil(image.shape[1] / 32) * 32,
+        256,
+    )
+    step_size = (64, 64, 128)  # x, y not used
+    batch_size = 1
     batch = []
 
     def run_batch():
