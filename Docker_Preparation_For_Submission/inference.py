@@ -26,6 +26,7 @@ import scipy
 import torch
 import segmentation_models_pytorch_3d as smp
 import gc
+import math
 from contextlib import ExitStack
 from unittest.mock import patch
 from glob import glob
@@ -477,12 +478,14 @@ def run():
         metrics=dict(),
         save_dirpath=None,
     )
-
-    shape = image.shape
-    xsize, ysize, _ = shape
-
-    patch_size = (xsize, ysize, 256)
-    step_size = (xsize, ysize, 128)
+    # Full size by x, y
+    # padded by 32 to comply with the SMP requirements
+    patch_size = (
+        math.ceil(image.shape[0] / 32) * 32,
+        math.ceil(image.shape[1] / 32) * 32,
+        256,
+    )
+    step_size = (64, 64, 128)  # x, y not used
     batch_size = 1
     batch = []
 
@@ -493,6 +496,7 @@ def run():
             image = batch['image'].to(device)
             for model in models:
                 pred = model(image)
+                pred = torch.softmax(pred, dim=1)
                 metric.update({'pred': pred, **batch})
             batch = []
 
@@ -606,6 +610,8 @@ def run():
     prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
     #prob_masks = rostepifanov_prob_masks
     # prob_masks = mkotyushev_prob_masks
+    # prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
+    # prob_masks = rostepifanov_prob_masks
 
     aortic_branches = prob_masks.argmax(axis=0).astype(np.uint8)
 
