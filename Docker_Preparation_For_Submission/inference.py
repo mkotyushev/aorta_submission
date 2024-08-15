@@ -503,6 +503,7 @@ def run():
         RESOURCE_PATH / "models" / "model_final_seed0.pth",
         RESOURCE_PATH / "models" / "model_final_seed1.pth",
         RESOURCE_PATH / "models" / "model_final_seed2.pth",
+        RESOURCE_PATH / "models" / "model_final_seed3.pth",
     ]
 
     for saved_model_path in rostepifanov_saved_model_paths:
