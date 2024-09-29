@@ -524,6 +524,8 @@ def run():
         model.load_state_dict(state_dict, strict=True)
         model = model.to(device)
         model.eval()
+        for param in model.parameters():
+            param.requires_grad = False
         models.append(model)
 
     print("Defined the models...")
@@ -548,7 +550,7 @@ def run():
 
     def run_batch():
         nonlocal batch, metric, models, device, bg_multiplier
-        with torch.no_grad():
+        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.bfloat16):
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
@@ -556,6 +558,7 @@ def run():
                 pred = torch.softmax(pred, dim=1)
                 pred[:, 0] *= bg_multiplier
                 pred = pred / pred.sum(dim=1, keepdim=True)
+                pred = pred.cpu()
                 metric.update({'pred': pred, **batch})
             batch = []
 
