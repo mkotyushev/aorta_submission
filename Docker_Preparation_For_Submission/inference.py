@@ -545,7 +545,7 @@ def run():
     )
     step_size = (64, 64, 128)  # x, y not used
     batch_size = 1
-    bg_multiplier = 0.3
+    bg_multiplier = 0.8
     batch = []
 
     def run_batch():
@@ -596,6 +596,7 @@ def run():
     # aortic_branches = aortic_branches.transpose(2, 1, 0)
 
     # rostepifanov code
+    bg_multiplier = 0.3
 
     from cc3d import connected_components
 
@@ -672,7 +673,7 @@ def run():
 
     # ensemble
 
-    prob_masks = 0.4 * rostepifanov_prob_masks + 0.6 * mkotyushev_prob_masks
+    prob_masks = 0.5 * rostepifanov_prob_masks + 0.5 * mkotyushev_prob_masks
     #prob_masks = rostepifanov_prob_masks
     # prob_masks = mkotyushev_prob_masks
     # prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
