@@ -381,6 +381,9 @@ def create_rostepifanov_model():
                 depth = jdx
                 layer = idx+jdx
 
+                if depth == 0 and (layer != 0 and layer != self.nblocks-1):
+                    continue
+                    
                 block = self.blocks[f'b_{depth}_{layer}']
 
                 if depth == 0:
@@ -394,24 +397,20 @@ def create_rostepifanov_model():
                 x = block(x, skip, shape)
                 xs[f'x_{depth}_{layer}'] = x
                 if depth == 0 and layer == self.nblocks - 1:
-                    return xs
+                    return xs[f'x_{0}_{self.nblocks-1}']
 
-        return xs
+        return xs[f'x_{0}_{self.nblocks-1}']
 
     heads = {}
-
-    for idx in range(model.decoder.nblocks):
-        heads[f'{idx}'] = copy.deepcopy(model.head)
-
+    idx = model.decoder.nblocks - 1
+    heads[f'{idx}'] = model.head
     model.heads = torch.nn.ModuleDict(heads)
 
     del model.head
 
     def model_forward(self, x):
         f = self.encoder(x)
-        xs = self.decoder(*f)
-        idx = self.decoder.nblocks - 1
-        x = xs[f'x_{0}_{idx}']
+        x = self.decoder(*f)
         x = self.heads[f'{idx}'](x)
         return x
 
@@ -425,6 +424,9 @@ def create_rostepifanov_model():
     del model.decoder.blocks.b_0_2.attention1
     del model.decoder.blocks.b_0_3.attention1
     del model.decoder.blocks.b_0_4.attention1
+    del model.decoder.blocks['b_0_1']
+    del model.decoder.blocks['b_0_2']
+    del model.decoder.blocks['b_0_3']
 
     return model
 

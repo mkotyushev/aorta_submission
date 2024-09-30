@@ -319,6 +319,7 @@ class UnpatchifyMetrics:
         }
 
 
+NOT_USED_BLOCK_NAMES = {'b_0_1', 'b_0_2', 'b_0_3'}
 class Unetpp(torch.nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
@@ -343,6 +344,9 @@ class Unetpp(torch.nn.Module):
             for jdx in range(nblocks - idx):
                 depth = jdx
                 layer = idx+jdx
+                block_name = f'b_{depth}_{layer}'
+                if block_name in NOT_USED_BLOCK_NAMES:
+                    continue
         
                 in_ = in_channels[-depth-1]
                 skip_ = skip_channels[-depth-1]
@@ -355,7 +359,7 @@ class Unetpp(torch.nn.Module):
                 skips[f's_{depth}_{layer}'] = out_
         
                 block = smp.decoders.unetplusplus.decoder.DecoderBlock(in_, skip_, out_)
-                blocks[f'b_{depth}_{layer}'] = block
+                blocks[block_name] = block
         
             if idx == 0:
                 in_channels = (0, *in_channels[:-1])
@@ -366,14 +370,12 @@ class Unetpp(torch.nn.Module):
 
         
         model.heads = torch.nn.ModuleDict()
-        
-        for idx in range(model.decoder.depth + 1):
-            model.heads[f'{idx}'] = torch.nn.Conv3d(
-                24,
-                24,
-                3,
-                1,
-                1
+        model.heads[f'{model.decoder.depth}'] = torch.nn.Conv3d(
+            24,
+            24,
+            3,
+            1,
+            1
         )
         
         def decoder_forward(self, *feats):
@@ -387,6 +389,9 @@ class Unetpp(torch.nn.Module):
                     depth = jdx
                     layer = idx+jdx
         
+                    if depth == 0 and (layer != 0 and layer != self.nblocks-1):
+                        continue
+                    
                     block = self.blocks[f'b_{depth}_{layer}']
         
                     if depth == 0:
@@ -400,15 +405,13 @@ class Unetpp(torch.nn.Module):
                     x = block(x, skip)
                     xs[f'x_{depth}_{layer}'] = x
                     if depth == 0 and layer == self.nblocks - 1:
-                        return xs
+                        return xs[f'x_{0}_{self.nblocks-1}']
         
-            return xs
+            return xs[f'x_{0}_{self.nblocks-1}']
         
         def model_forward(self, x):
             f = self.encoder(x)
-            xs = self.decoder(*f)
-            idx = self.decoder.nblocks - 1
-            x = xs[f'x_{0}_{idx}']
+            x = self.decoder(*f)
             x = self.heads[f'{idx}'](x)
             return x
         
@@ -416,6 +419,9 @@ class Unetpp(torch.nn.Module):
         
         model.decoder.forward = types.MethodType(decoder_forward, model.decoder)
         model.forward = types.MethodType(model_forward, model)
+
+        del model.decoder.blocks['b_0_0'].attention1
+        del model.decoder.blocks['b_0_4'].attention1
 
         self.model = model
 
@@ -511,10 +517,12 @@ def run():
         'encoder_depth': 5,
         'encoder_weights': None,
     }
+    should_not_contain = NOT_USED_BLOCK_NAMES | {f'heads.{i}' for i in range(4)}
     for saved_model_path in saved_model_paths:
         model = build_model(seg_arch, seg_kwargs)
         state_dict = torch.load(saved_model_path, map_location='cpu', weights_only=True)
         state_dict = {k[len('model.'):]: v for k, v in state_dict.items()}
+        state_dict = {k: v for k, v in state_dict.items() if all([not bk in k for bk in should_not_contain])}
         model.load_state_dict(state_dict, strict=True)
         model = model.to(device)
         model.eval()
@@ -619,6 +627,7 @@ def run():
     for saved_model_path in rostepifanov_saved_model_paths:
         model = create_rostepifanov_model()
         state_dict = torch.load(saved_model_path, map_location='cpu')
+        state_dict = {k: v for k, v in state_dict.items() if all([not bk in k for bk in should_not_contain])}
         model.load_state_dict(state_dict, strict=True)
         model = model.to(device)
         model.eval()
