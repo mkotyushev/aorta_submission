@@ -524,7 +524,7 @@ def run():
         state_dict = {k[len('model.'):]: v for k, v in state_dict.items()}
         state_dict = {k: v for k, v in state_dict.items() if all([not bk in k for bk in should_not_contain])}
         model.load_state_dict(state_dict, strict=True)
-        model = model.to(device)
+        model = model.to('cpu')
         model.eval()
         for param in model.parameters():
             param.requires_grad = False
@@ -557,11 +557,13 @@ def run():
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
+                model = model.to(device)
                 pred = model(image)
                 pred = torch.softmax(pred, dim=1)
                 pred[:, 0] *= bg_multiplier
                 pred = pred / pred.sum(dim=1, keepdim=True)
                 pred = pred.cpu()
+                model = model.to('cpu')
                 metric.update({'pred': pred, **batch})
             batch = []
 
