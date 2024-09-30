@@ -591,7 +591,7 @@ def run():
         run_batch()
     metric._calculate_metrics()
 
-    mkotyushev_prob_masks = metric.preds.float().cpu().numpy()
+    mkotyushev_prob_masks = metric.preds.cpu().float().numpy()
     del models
     torch.cuda.empty_cache()
 
