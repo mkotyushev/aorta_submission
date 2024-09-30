@@ -37,6 +37,7 @@ from torch.utils.data import default_collate
 from tqdm import tqdm
 
 from convert_2d_to_3d import TimmUniversalEncoder3d
+from convertors import create_rostepifanov_model, EvalFusing, voxel_sequential_selector
 
 
 print('All required modules are loaded!!!')
@@ -526,6 +527,7 @@ def run():
         model.eval()
         for param in model.parameters():
             param.requires_grad = False
+        model.model.encoder.model = EvalFusing(model.model.encoder.model, 'timm-efficientnetv2-m')
         models.append(model)
 
     print("Defined the models...")
@@ -550,7 +552,7 @@ def run():
 
     def run_batch():
         nonlocal batch, metric, models, device, bg_multiplier
-        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float16):
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
@@ -611,8 +613,6 @@ def run():
             filter_masks[components != (np.argmax(sizes) + 1)] = 0
 
         return filter_masks
-
-    from convertors import create_rostepifanov_model, EvalFusing, voxel_sequential_selector
 
     rostepifanov_models = []
 
