@@ -1,10 +1,11 @@
+import copy
 import timm
 import torch
 import types
 import torch.nn as nn
 
 from collections import OrderedDict
-from nnspt.segmentation.unet import Unet
+from nnspt.segmentation.unetpp import Unetpp
 
 def __classinit(cls):
     return cls._init__class()
@@ -362,14 +363,78 @@ class EvalFusing(object):
             return model.eval()
 
 def create_rostepifanov_model():
-    model = Unet( in_channels=1,
+    model = Unetpp( in_channels=1,
                 out_channels=24,
                 encoder='timm-efficientnetv2-m')
 
     convert_inplace(model, LayerConvertorNNSPT)
     convert_inplace(model, LayerConvertorSm)
 
+    def decoder_forward(self, *feats):
+        xs = dict()
+
+        for idx, x in enumerate(feats):
+            xs[f'x_{idx}_{idx-1}'] = x
+
+        for idx in range(self.nblocks):
+            for jdx in range(self.nblocks - idx):
+                depth = jdx
+                layer = idx+jdx
+
+                block = self.blocks[f'b_{depth}_{layer}']
+
+                if depth == 0:
+                    skip = None
+                    shape = xs[f'x_{0}_{-1}'].shape
+                else:
+                    skip = torch.concat([ xs[f'x_{depth}_{layer-sdx-1}'] for sdx in range(layer-depth+1) ], axis=1)
+                    shape = xs[f'x_{depth}_{layer-1}'].shape
+
+                x = xs[f'x_{depth+1}_{layer}']
+                x = block(x, skip, shape)
+                xs[f'x_{depth}_{layer}'] = x
+
+        return xs
+
+    heads = {}
+
+    for idx in range(model.decoder.nblocks):
+        heads[f'{idx}'] = copy.deepcopy(model.head)
+
+    model.heads = torch.nn.ModuleDict(heads)
+
+    del model.head
+
+    def model_forward(self, x):
+        f = self.encoder(x)
+        xs = self.decoder(*f)
+
+        out = tuple()
+        
+        for idx in range(self.decoder.nblocks):
+            x = xs[f'x_{0}_{idx}']
+            x = self.heads[f'{idx}'](x)
+
+            out = (*out, x)
+
+        if self.training:
+            return out
+        else:
+            return x
+
+    import types
+
+    model.decoder.forward = types.MethodType(decoder_forward, model.decoder)
+    model.forward = types.MethodType(model_forward, model)
+
+    del model.decoder.blocks.b_0_0.attention1
+    del model.decoder.blocks.b_0_1.attention1
+    del model.decoder.blocks.b_0_2.attention1
+    del model.decoder.blocks.b_0_3.attention1
+    del model.decoder.blocks.b_0_4.attention1
+
     return model
+
 
 import numpy as np
 from itertools import product, chain

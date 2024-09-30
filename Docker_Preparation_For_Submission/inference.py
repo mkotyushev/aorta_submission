@@ -624,7 +624,7 @@ def run():
 
     for saved_model_path in rostepifanov_saved_model_paths:
         model = create_rostepifanov_model()
-        state_dict = torch.load(saved_model_path, map_location='cpu', weights_only=True)
+        state_dict = torch.load(saved_model_path, map_location='cpu')
         model.load_state_dict(state_dict, strict=True)
         model = model.to(device)
         model.eval()
