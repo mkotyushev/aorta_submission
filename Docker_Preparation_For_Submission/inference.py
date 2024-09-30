@@ -499,103 +499,103 @@ def run():
     os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
-
-    ##### uncomment ############################################################
-
-    saved_model_paths = [
-        RESOURCE_PATH / "models" / "djgacrg6" / "epoch=9-step=4690.pt",  # fold 0 
-        RESOURCE_PATH / "models" / "prumdud7" / "epoch=13-step=6566.pt",  # fold 1
-        RESOURCE_PATH / "models" / "2x7myvqv" / "epoch=9-step=4690.pt",  # fold 2
-        RESOURCE_PATH / "models" / "qamo2s3f" / "epoch=15-step=7504.pt",  # fold 3 
-        RESOURCE_PATH / "models" / "pioy56fm" / "epoch=12-step=6097.pt",  # fold 4 
-    ]
-    seg_arch = 'Unetpp'
-    seg_kwargs = {
-        'encoder_name': 'tu-tf_efficientnetv2_m.in21k_ft_in1k',
-        'in_channels': 1,
-        'classes': 24,
-        'encoder_depth': 5,
-        'encoder_weights': None,
-    }
     should_not_contain = NOT_USED_BLOCK_NAMES | {f'heads.{i}' for i in range(4)}
-    for saved_model_path in saved_model_paths:
-        model = build_model(seg_arch, seg_kwargs)
-        state_dict = torch.load(saved_model_path, map_location='cpu', weights_only=True)
-        state_dict = {k[len('model.'):]: v for k, v in state_dict.items()}
-        state_dict = {k: v for k, v in state_dict.items() if all([not bk in k for bk in should_not_contain])}
-        model.load_state_dict(state_dict, strict=True)
-        model = model.to('cpu')
-        model.eval()
-        for param in model.parameters():
-            param.requires_grad = False
-        model.model.encoder.model = EvalFusing(model.model.encoder.model, 'timm-efficientnetv2-m')
-        models.append(model)
 
-    print("Defined the models...")
+    # ##### uncomment ############################################################
 
-    # Inference
-    metric = UnpatchifyMetrics(
-        n_classes=24,
-        metrics=dict(),
-        save_dirpath=None,
-    )
-    # Full size by x, y
-    # padded by 32 to comply with the SMP requirements
-    patch_size = (
-        math.ceil(image.shape[0] / 32) * 32,
-        math.ceil(image.shape[1] / 32) * 32,
-        256,
-    )
-    step_size = (64, 64, 128)  # x, y not used
-    batch_size = 1
-    bg_multiplier = 0.8
-    batch = []
+    # saved_model_paths = [
+    #     RESOURCE_PATH / "models" / "djgacrg6" / "epoch=9-step=4690.pt",  # fold 0 
+    #     RESOURCE_PATH / "models" / "prumdud7" / "epoch=13-step=6566.pt",  # fold 1
+    #     RESOURCE_PATH / "models" / "2x7myvqv" / "epoch=9-step=4690.pt",  # fold 2
+    #     RESOURCE_PATH / "models" / "qamo2s3f" / "epoch=15-step=7504.pt",  # fold 3 
+    #     RESOURCE_PATH / "models" / "pioy56fm" / "epoch=12-step=6097.pt",  # fold 4 
+    # ]
+    # seg_arch = 'Unetpp'
+    # seg_kwargs = {
+    #     'encoder_name': 'tu-tf_efficientnetv2_m.in21k_ft_in1k',
+    #     'in_channels': 1,
+    #     'classes': 24,
+    #     'encoder_depth': 5,
+    #     'encoder_weights': None,
+    # }
+    # for saved_model_path in saved_model_paths:
+    #     model = build_model(seg_arch, seg_kwargs)
+    #     state_dict = torch.load(saved_model_path, map_location='cpu', weights_only=True)
+    #     state_dict = {k[len('model.'):]: v for k, v in state_dict.items()}
+    #     state_dict = {k: v for k, v in state_dict.items() if all([not bk in k for bk in should_not_contain])}
+    #     model.load_state_dict(state_dict, strict=True)
+    #     model = model.to('cpu')
+    #     model.eval()
+    #     for param in model.parameters():
+    #         param.requires_grad = False
+    #     model.model.encoder.model = EvalFusing(model.model.encoder.model, 'timm-efficientnetv2-m')
+    #     models.append(model)
 
-    def run_batch():
-        nonlocal batch, metric, models, device, bg_multiplier
-        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float32):
-            batch = collate_fn(batch)
-            image = batch['image'].to(device)
-            for model in models:
-                model = model.to(device)
-                pred = model(image)
-                pred = torch.softmax(pred, dim=1)
-                pred[:, 0] *= bg_multiplier
-                pred = pred / pred.sum(dim=1, keepdim=True)
-                pred = pred.cpu()
-                model = model.to('cpu')
-                metric.update({'pred': pred, **batch})
-            batch = []
+    # print("Defined the models...")
 
-    for (
-        (image_patch,), 
-        indices, 
-        original_shape, 
-        padded_shape
-    ) in tqdm(
-        generate_patches_3d(
-            image, patch_size=patch_size, step_size=step_size,
-        )
-    ):
-        item = {
-            'image': image_patch,
-            'name': 'image',
-            'indices': indices,
-            'original_shape': original_shape,
-            'padded_shape': padded_shape,
-        }
-        item = transform(**item)
-        batch.append(item)
+    # # Inference
+    # metric = UnpatchifyMetrics(
+    #     n_classes=24,
+    #     metrics=dict(),
+    #     save_dirpath=None,
+    # )
+    # # Full size by x, y
+    # # padded by 32 to comply with the SMP requirements
+    # patch_size = (
+    #     math.ceil(image.shape[0] / 32) * 32,
+    #     math.ceil(image.shape[1] / 32) * 32,
+    #     256,
+    # )
+    # step_size = (64, 64, 128)  # x, y not used
+    # batch_size = 1
+    # bg_multiplier = 0.8
+    # batch = []
 
-        if len(batch) == batch_size:
-            run_batch()
-    if len(batch) > 0:
-        run_batch()
-    metric._calculate_metrics()
+    # def run_batch():
+    #     nonlocal batch, metric, models, device, bg_multiplier
+    #     with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float32):
+    #         batch = collate_fn(batch)
+    #         image = batch['image'].to(device)
+    #         for model in models:
+    #             model = model.to(device)
+    #             pred = model(image)
+    #             pred = torch.softmax(pred, dim=1)
+    #             pred[:, 0] *= bg_multiplier
+    #             pred = pred / pred.sum(dim=1, keepdim=True)
+    #             pred = pred.cpu()
+    #             model = model.to('cpu')
+    #             metric.update({'pred': pred, **batch})
+    #         batch = []
 
-    mkotyushev_prob_masks = metric.preds.float().cpu().numpy()
-    del models
-    torch.cuda.empty_cache()
+    # for (
+    #     (image_patch,), 
+    #     indices, 
+    #     original_shape, 
+    #     padded_shape
+    # ) in tqdm(
+    #     generate_patches_3d(
+    #         image, patch_size=patch_size, step_size=step_size,
+    #     )
+    # ):
+    #     item = {
+    #         'image': image_patch,
+    #         'name': 'image',
+    #         'indices': indices,
+    #         'original_shape': original_shape,
+    #         'padded_shape': padded_shape,
+    #     }
+    #     item = transform(**item)
+    #     batch.append(item)
+
+    #     if len(batch) == batch_size:
+    #         run_batch()
+    # if len(batch) > 0:
+    #     run_batch()
+    # metric._calculate_metrics()
+
+    # mkotyushev_prob_masks = metric.preds.float().cpu().numpy()
+    # del models
+    # torch.cuda.empty_cache()
 
     ########################################################################### 
 
@@ -679,8 +679,8 @@ def run():
 
     # ensemble
 
-    prob_masks = 0.5 * rostepifanov_prob_masks + 0.5 * mkotyushev_prob_masks
-    #prob_masks = rostepifanov_prob_masks
+    # prob_masks = 0.5 * rostepifanov_prob_masks + 0.5 * mkotyushev_prob_masks
+    prob_masks = rostepifanov_prob_masks
     # prob_masks = mkotyushev_prob_masks
     # prob_masks = (rostepifanov_prob_masks + mkotyushev_prob_masks) / 2
     # prob_masks = rostepifanov_prob_masks
