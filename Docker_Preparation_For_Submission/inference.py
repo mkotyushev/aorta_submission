@@ -399,25 +399,18 @@ class Unetpp(torch.nn.Module):
                     x = xs[f'x_{depth+1}_{layer}']
                     x = block(x, skip)
                     xs[f'x_{depth}_{layer}'] = x
+                    if depth == 0 and layer == self.nblocks - 1:
+                        return xs
         
             return xs
         
         def model_forward(self, x):
             f = self.encoder(x)
             xs = self.decoder(*f)
-        
-            out = tuple()
-
-            for idx in range(self.decoder.nblocks):
-                x = xs[f'x_{0}_{idx}']
-                x = self.heads[f'{idx}'](x)
-        
-                out = (*out, x)
-        
-            if self.training:
-                return out
-            else:
-                return x
+            idx = self.decoder.nblocks - 1
+            x = xs[f'x_{0}_{idx}']
+            x = self.heads[f'{idx}'](x)
+            return x
         
         # model.decoder.nblocks = len(model.decoder.blocks)
         
@@ -552,7 +545,7 @@ def run():
 
     def run_batch():
         nonlocal batch, metric, models, device, bg_multiplier
-        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float16):
+        with torch.no_grad(), torch.autocast(device_type='cuda', dtype=torch.float32):
             batch = collate_fn(batch)
             image = batch['image'].to(device)
             for model in models:
