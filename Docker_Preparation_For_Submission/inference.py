@@ -592,6 +592,8 @@ def run():
     metric._calculate_metrics()
 
     mkotyushev_prob_masks = metric.preds.float().cpu().numpy()
+    del models
+    torch.cuda.empty_cache()
 
     ########################################################################### 
 
