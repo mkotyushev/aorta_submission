@@ -393,6 +393,8 @@ def create_rostepifanov_model():
                 x = xs[f'x_{depth+1}_{layer}']
                 x = block(x, skip, shape)
                 xs[f'x_{depth}_{layer}'] = x
+                if depth == 0 and layer == self.nblocks - 1:
+                    return xs
 
         return xs
 
@@ -408,19 +410,10 @@ def create_rostepifanov_model():
     def model_forward(self, x):
         f = self.encoder(x)
         xs = self.decoder(*f)
-
-        out = tuple()
-        
-        for idx in range(self.decoder.nblocks):
-            x = xs[f'x_{0}_{idx}']
-            x = self.heads[f'{idx}'](x)
-
-            out = (*out, x)
-
-        if self.training:
-            return out
-        else:
-            return x
+        idx = self.decoder.nblocks - 1
+        x = xs[f'x_{0}_{idx}']
+        x = self.heads[f'{idx}'](x)
+        return x
 
     import types
 
