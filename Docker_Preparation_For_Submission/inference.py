@@ -505,7 +505,7 @@ def run():
     saved_model_paths = [
         RESOURCE_PATH / "models" / "djgacrg6" / "epoch=9-step=4690.pt",  # fold 0 
         RESOURCE_PATH / "models" / "prumdud7" / "epoch=13-step=6566.pt",  # fold 1
-        RESOURCE_PATH / "models" / "2x7myvqv" / "epoch=9-step=4690.pt",  # fold 2
+        # RESOURCE_PATH / "models" / "2x7myvqv" / "epoch=9-step=4690.pt",  # fold 2
         # RESOURCE_PATH / "models" / "qamo2s3f" / "epoch=15-step=7504.pt",  # fold 3 
         # RESOURCE_PATH / "models" / "pioy56fm" / "epoch=12-step=6097.pt",  # fold 4 
     ]
